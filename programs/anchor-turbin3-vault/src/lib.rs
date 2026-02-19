@@ -109,7 +109,7 @@ impl<'info> Deposit<'info> {
         let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
 
         transfer(cpi_context, amount)?;
-        
+
         Ok(())
     }
 }
@@ -123,15 +123,14 @@ pub struct Withdraw<'info> {
     
     #[account(
         seeds = [b"state", owner.key().as_ref()],
-        bump,
+        bump = vault_state.state_bump,
     )]
-    
     pub vault_state: Account<'info, VaultState>,
 
     #[account(
         mut,
         seeds = [b"vault", owner.key().as_ref()],
-        bump,
+        bump = vault_state.vault_bump,
     )]
     pub vault: SystemAccount<'info>,
 
@@ -147,7 +146,14 @@ impl<'info> Withdraw<'info> {
             to: self.owner.to_account_info(),
         };
 
-        let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
+        let seeds = &[
+            b"vault",
+            self.owner.to_account_info().key.as_ref(),
+            &[self.vault_state.vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
         transfer(cpi_context, amount)?;
         
@@ -161,16 +167,17 @@ pub struct Close<'info> {
     pub owner: Signer<'info>,
     
     #[account(
+        mut,
         seeds = [b"state", owner.key().as_ref()],
-        bump,
+        bump = vault_state.state_bump,
+        close = owner,
     )]
-    
     pub vault_state: Account<'info, VaultState>,
 
     #[account(
         mut,
         seeds = [b"vault", owner.key().as_ref()],
-        bump,
+        bump = vault_state.vault_bump,
     )]
     pub vault: SystemAccount<'info>,
 
@@ -185,7 +192,14 @@ impl<'info> Close<'info> {
             to: self.owner.to_account_info(),
         };
 
-        let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
+        let seeds = &[
+            b"vault",
+            self.owner.to_account_info().key.as_ref(),
+            &[self.vault_state.vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
         transfer(cpi_context, self.vault.lamports())?;
         
